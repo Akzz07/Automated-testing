@@ -6,6 +6,8 @@ from lms_core.models import Course, CourseMember
 from django.shortcuts import get_object_or_404
 from typing import List
 from django.contrib.auth.models import User
+from lms_core.api_endpoints.auth import GlobalAuth
+
 
 # Schemas (biarkan ini)
 class UserSchema(Schema):
@@ -35,14 +37,14 @@ def add_courses_routes(router): # Menerima instance Router DI SINI
         courses = Course.objects.all()
         return courses
 
-    @router.post("", response=CourseSchemaOut)
+    @router.post("", response=CourseSchemaOut, auth=GlobalAuth())
     def create_course(request, course_in: CourseSchemaIn, file: UploadedFile = File(None)):
         if not request.auth:
             raise ValueError("Authentication required")
         course = Course.objects.create(**course_in.dict(), teacher=request.auth)
         return course
 
-    @router.post("/{course_id}", response=CourseSchemaOut)
+    @router.put("/{course_id}", response=CourseSchemaOut, auth=GlobalAuth())
     def update_course(request, course_id: int, course_in: CourseSchemaIn, file: UploadedFile = File(None)):
         if not request.auth:
             raise ValueError("Authentication required")
@@ -54,7 +56,7 @@ def add_courses_routes(router): # Menerima instance Router DI SINI
         course.save()
         return course
 
-    @router.post("/{course_id}/enroll", response=CourseMemberSchemaOut)
+    @router.post("/{course_id}/enroll", response=CourseMemberSchemaOut, auth=GlobalAuth())
     def enroll_course(request, course_id: int):
         if not request.auth:
             raise ValueError("Authentication required")

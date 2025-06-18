@@ -1,13 +1,12 @@
+# lms_core/tests/test_client.py
 from ninja import NinjaAPI
 from ninja.testing import TestClient
 from lms_core.api import create_lms_router
+from lms_core.api_endpoints.auth import GlobalAuth
 
-# Buat Test API dengan versi & namespace unik
-test_api = NinjaAPI(
-    version="tempik_999",
-    urls_namespace="tempik_namespace_999"
-)
-test_api.add_router("/v1/", create_lms_router())
+# Gunakan version & namespace unik agar tidak bentrok
+test_api = NinjaAPI(version="test-v1", urls_namespace="test_namespace", auth=GlobalAuth())
+test_api.add_router("/api/v1/", create_lms_router())
 
-# Ini yang dipakai semua test
+# TestClient global — gunakan ini di test manapun
 client = TestClient(test_api)

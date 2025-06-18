@@ -6,7 +6,7 @@ from lms_core.models import Course, CourseMember, CourseContent, Comment
 
 
 class APITestCase(TestCase):
-    base_url = '/v1/'
+    base_url = '/api/v1/'
 
 
     def setUp(self):
@@ -22,18 +22,24 @@ class APITestCase(TestCase):
             self.base_url + 'auth/sign-in',
             json={'username': 'teacher', 'password': 'password123'}
         )
+        print("Login teacher response status:", login_teacher_response.status_code)
+        print("Login teacher response JSON:", login_teacher_response.json())
         self.assertEqual(login_teacher_response.status_code, 200)
         self.teacher_token = login_teacher_response.json()['access']
         self.teacher_auth_headers = {'Authorization': f'Bearer {self.teacher_token}'}
+        
 
         # Login siswa
         login_student_response = client.post(
             self.base_url + 'auth/sign-in',
             json={'username': 'student', 'password': 'password123'}
         )
+        print("Login student response status:", login_student_response.status_code)
+        print("Login student response JSON:", login_student_response.json())
         self.assertEqual(login_student_response.status_code, 200)
         self.student_token = login_student_response.json()['access']
         self.student_auth_headers = {'Authorization': f'Bearer {self.student_token}'}
+        
 
         # Buat course
         course_data = {
