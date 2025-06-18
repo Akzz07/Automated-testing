@@ -3,25 +3,34 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from django.core.management import call_command
 from lms_core.tests.test_client import client
-
+from django.contrib.auth.models import User
+from django.contrib.auth.hashers import make_password
+from django.test import TestCase, Client
 
 class NegativeAPITestCase(TestCase):
-    base_url = '/api/v1/'
-
     def setUp(self):
-        call_command('flush', verbosity=0, interactive=False)
+        self.client = Client()
+        self.base_url = "/api/v1/"
 
-        # Buat user guru
-        self.teacher = User.objects.create_user(username='teacher', password='password123')
-
-        # Login guru
-        login_response = client.post(
-            self.base_url + 'auth/sign-in',
-            json={'username': 'teacher', 'password': 'password123'}
+        self.teacher, _ = User.objects.get_or_create(
+            username='teacher',
+            defaults={'password': make_password('password123')}
         )
+
+        login_response = self.client.post(
+            self.base_url + 'auth/sign-in',
+            {"username": "teacher", "password": "password123"},
+            content_type="application/json"
+        )
+
+        print("Login teacher response status:", login_response.status_code)
+        print("Login teacher response JSON:", login_response.json())
+
         self.assertEqual(login_response.status_code, 200)
         self.teacher_token = login_response.json()['access']
         self.teacher_auth_headers = {'Authorization': f'Bearer {self.teacher_token}'}
+
+
 
     def test_create_course_without_name(self):
         # Kirim request tanpa nama

@@ -3,36 +3,45 @@ from django.contrib.auth.models import User
 from django.core.management import call_command
 from lms_core.tests.test_client import client  # client ini adalah TestClient(api)
 from lms_core.models import Course, CourseMember, CourseContent, Comment
-
+from django.contrib.auth.models import User
+from django.contrib.auth.hashers import make_password
+from django.test import TestCase, Client
 
 class APITestCase(TestCase):
-    base_url = '/api/v1/'
-
-
     def setUp(self):
-        
-        call_command('flush', verbosity=0, interactive=False)
+        self.client = Client()
+        self.base_url = "/api/v1/"
 
-        # Buat user guru dan siswa
-        self.teacher = User.objects.create_user(username='teacher', password='password123')
-        self.student = User.objects.create_user(username='student', password='password123')
+        # Pastikan user teacher dan student tidak duplikat
+        self.teacher, _ = User.objects.get_or_create(
+            username='teacher',
+            defaults={'password': make_password('password123')}
+        )
+        self.student, _ = User.objects.get_or_create(
+            username='student',
+            defaults={'password': make_password('password123')}
+        )
 
         # Login guru
-        login_teacher_response = client.post(
+        login_teacher_response = self.client.post(
             self.base_url + 'auth/sign-in',
-            json={'username': 'teacher', 'password': 'password123'}
+            {"username": "teacher", "password": "password123"},
+            content_type="application/json"
         )
+
         print("Login teacher response status:", login_teacher_response.status_code)
         print("Login teacher response JSON:", login_teacher_response.json())
+
         self.assertEqual(login_teacher_response.status_code, 200)
         self.teacher_token = login_teacher_response.json()['access']
         self.teacher_auth_headers = {'Authorization': f'Bearer {self.teacher_token}'}
         
 
         # Login siswa
-        login_student_response = client.post(
+        login_student_response = self.client.post(
             self.base_url + 'auth/sign-in',
-            json={'username': 'student', 'password': 'password123'}
+            {"username": "student", "password": "password123"},
+            content_type="application/json"
         )
         print("Login student response status:", login_student_response.status_code)
         print("Login student response JSON:", login_student_response.json())
@@ -47,7 +56,7 @@ class APITestCase(TestCase):
             "description": "Learn Django from scratch.",
             "price": 100
         }
-        create_course_response = client.post(
+        create_course_response = self.client.post(
             self.base_url + 'courses',
             json=course_data,
             headers=self.teacher_auth_headers
@@ -57,7 +66,7 @@ class APITestCase(TestCase):
 
         # Buat content
         content_data = {"name": "Introduction to Django", "description": "First lesson"}
-        create_content_response = client.post(
+        create_content_response = self.client.post(
             f'{self.base_url}courses/{self.course.id}/contents',
             json=content_data,
             headers=self.teacher_auth_headers
@@ -74,7 +83,7 @@ class APITestCase(TestCase):
 
     def test_create_course(self):
         data = {"name": "New Course", "description": "New Desc", "price": 150}
-        response = client.post(
+        response = self.client.post(
             self.base_url + 'courses',
             json=data,
             headers=self.teacher_auth_headers
@@ -95,7 +104,7 @@ class APITestCase(TestCase):
         self.assertEqual(self.course.name, "Updated Course")
 
     def test_enroll_course(self):
-        response = client.post(
+        response = self.client.post(
             f'{self.base_url}courses/{self.course.id}/enroll',
             headers=self.student_auth_headers
         )
@@ -104,7 +113,7 @@ class APITestCase(TestCase):
 
     def test_create_content_comment(self):
         # Enroll student dulu
-        client.post(
+        self.client.post(
             f'{self.base_url}courses/{self.course.id}/enroll',
             headers=self.student_auth_headers
         )
@@ -118,7 +127,7 @@ class APITestCase(TestCase):
         self.assertTrue(Comment.objects.filter(content=self.content, user=self.student).exists())
 
     def test_delete_comment(self):
-        client.post(
+        self.client.post(
             f'{self.base_url}courses/{self.course.id}/enroll',
             headers=self.student_auth_headers
         )
