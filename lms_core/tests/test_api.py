@@ -6,6 +6,7 @@ from lms_core.models import Course, CourseMember, CourseContent, Comment
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
 from django.test import TestCase, Client
+import json
 
 class APITestCase(TestCase):
     def setUp(self):
@@ -51,16 +52,26 @@ class APITestCase(TestCase):
         
 
         # Buat course
-        course_data = {
+        course_data_nested = {
+            "course_in": { # <--- Ini kuncinya!
+                "name": "Django for Beginners",
+                "description": "Learn Django from scratch.",
+                "price": 100
+            }
+        }
+        create_course_response = self.client.post(
+        self.base_url + 'courses/',
+        data={
             "name": "Django for Beginners",
             "description": "Learn Django from scratch.",
             "price": 100
-        }
-        create_course_response = self.client.post(
-            self.base_url + 'courses',
-            json=course_data,
-            headers=self.teacher_auth_headers
+        },
+        HTTP_AUTHORIZATION=f"Bearer {self.teacher_token}"
+
         )
+        print("Create course response status:", create_course_response.status_code)
+        print("Create course response JSON:", create_course_response.json())
+
         self.assertEqual(create_course_response.status_code, 200)
         self.course = Course.objects.get(id=create_course_response.json()['id'])
 
@@ -68,40 +79,50 @@ class APITestCase(TestCase):
         content_data = {"name": "Introduction to Django", "description": "First lesson"}
         create_content_response = self.client.post(
             f'{self.base_url}courses/{self.course.id}/contents',
-            json=content_data,
-            headers=self.teacher_auth_headers
+            data=json.dumps({"name": "Introduction to Django", "description": "First lesson"}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.teacher_token}"
+
         )
         self.assertEqual(create_content_response.status_code, 200)
         self.content = CourseContent.objects.get(id=create_content_response.json()['id'])
         print("Login response:", login_teacher_response.status_code, login_teacher_response.json())
 
     def test_list_courses(self):
-        response = client.get(f'{self.base_url}courses')
+        response = self.client.get(f'{self.base_url}courses')
         self.assertEqual(response.status_code, 200)
         self.assertGreaterEqual(len(response.json()), 1)
         self.assertEqual(response.json()[0]['name'], self.course.name)
 
     def test_create_course(self):
-        data = {"name": "New Course", "description": "New Desc", "price": 150}
         response = self.client.post(
-            self.base_url + 'courses',
-            json=data,
-            headers=self.teacher_auth_headers
-        )
+            self.base_url + 'courses/',
+            data={
+            "name": "New Course",
+            "description": "New Desc",
+            "price": 150
+        },
+        HTTP_AUTHORIZATION=f"Bearer {self.teacher_token}"
+
+    )
         self.assertEqual(response.status_code, 200)
         self.assertTrue(Course.objects.filter(name='New Course').exists())
 
     # Di method test_update_course, ubah POST menjadi PUT/PATCH:
     def test_update_course(self):
-        updated = {"name": "Updated Course", "description": "Updated", "price": 200}
-        response = client.put(  # Ubah dari post ke put
+     response = self.client.put(
         f'{self.base_url}courses/{self.course.id}/',
-         json=updated,
-         headers=self.teacher_auth_headers
-        )
-        self.assertEqual(response.status_code, 200)
-        self.course.refresh_from_db()
-        self.assertEqual(self.course.name, "Updated Course")
+        data={
+            "name": "Updated Course",
+            "description": "Updated",
+            "price": 200
+        },
+        HTTP_AUTHORIZATION=f"Bearer {self.teacher_token}"
+
+    )
+     self.assertEqual(response.status_code, 200)
+     self.course.refresh_from_db()
+     self.assertEqual(self.course.name, "Updated Course")
 
     def test_enroll_course(self):
         response = self.client.post(
@@ -112,16 +133,16 @@ class APITestCase(TestCase):
         self.assertTrue(CourseMember.objects.filter(course=self.course, user=self.student).exists())
 
     def test_create_content_comment(self):
-        # Enroll student dulu
         self.client.post(
             f'{self.base_url}courses/{self.course.id}/enroll',
-            headers=self.student_auth_headers
+            **self.student_auth_headers
         )
         comment_data = {'comment': 'This is a comment'}
-        response = client.post(
+        response = self.client.post(
             f'{self.base_url}contents/{self.content.id}/comments',
-            json=comment_data,
-            headers=self.student_auth_headers
+            data=json.dumps(comment_data),
+            content_type="application/json",
+            **self.student_auth_headers
         )
         self.assertEqual(response.status_code, 200)
         self.assertTrue(Comment.objects.filter(content=self.content, user=self.student).exists())
@@ -129,19 +150,21 @@ class APITestCase(TestCase):
     def test_delete_comment(self):
         self.client.post(
             f'{self.base_url}courses/{self.course.id}/enroll',
-            headers=self.student_auth_headers
+            **self.student_auth_headers
         )
         comment_data = {'comment': 'To be deleted'}
-        create_response = client.post(
+        create_response = self.client.post(
             f'{self.base_url}contents/{self.content.id}/comments',
-            json=comment_data,
-            headers=self.student_auth_headers
+            data=json.dumps(comment_data),
+            content_type="application/json",
+            **self.student_auth_headers
         )
         comment_id = create_response.json()['id']
 
-        delete_response = client.delete(
+        delete_response = self.client.delete(
             f'{self.base_url}comments/{comment_id}',
-            headers=self.student_auth_headers
+            **self.student_auth_headers
         )
         self.assertEqual(delete_response.status_code, 200)
         self.assertFalse(Comment.objects.filter(id=comment_id).exists())
+

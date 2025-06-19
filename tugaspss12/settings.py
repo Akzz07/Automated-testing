@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'ninja',
     'rest_framework_simplejwt',
+    'ninja_jwt',
 ]
 
 MIDDLEWARE = [
