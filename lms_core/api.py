@@ -13,10 +13,14 @@ def create_lms_router():
     main_router.add_router("auth/", auth_router)
 
     courses_router = Router()
+    comments_router = Router()
     add_courses_routes(courses_router)
     add_contents_routes(courses_router)  # ⬅️ Tambah di sini
-    add_comments_routes(courses_router)  # ⬅️ Dan ini juga
+    add_comments_routes(comments_router)  # ⬅️ Dan ini juga
     print("✅ Courses, Contents, Comments routes ditambahkan")
     main_router.add_router("courses/", courses_router)
+    
+    main_router.add_router("/contents", comments_router)
+    
 
     return main_router

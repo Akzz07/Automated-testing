@@ -5,6 +5,7 @@ from lms_core.models import CourseContent, Comment, CourseMember
 from django.shortcuts import get_object_or_404
 from datetime import datetime
 from django.contrib.auth.models import User
+from lms_core.api_endpoints.auth import GlobalAuth
 
 # Schemas (biarkan ini)
 class CommentSchemaIn(Schema):
@@ -18,7 +19,7 @@ class CommentSchemaOut(Schema):
     created_at: datetime
 
 def add_comments_routes(router): # Menerima instance Router DI SINI
-    @router.post("/{content_id}/comments", response=CommentSchemaOut)
+    @router.post("/{content_id}/comments", response=CommentSchemaOut, auth=GlobalAuth())
     def create_content_comment(request, content_id: int, comment_in: CommentSchemaIn):
         if not request.auth:
             raise ValueError("Authentication required")
@@ -29,7 +30,7 @@ def add_comments_routes(router): # Menerima instance Router DI SINI
         comment = Comment.objects.create(content_id=content, user_id=request.auth, **comment_in.dict())
         return comment
 
-    @router.delete("/{comment_id}", response={200: str})
+    @router.delete("/{comment_id}", response={200: str}, auth=GlobalAuth())
     def delete_comment(request, comment_id: int):
         if not request.auth:
             raise ValueError("Authentication required")
